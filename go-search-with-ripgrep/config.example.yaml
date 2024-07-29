@@ -7,4 +7,4 @@ bot_owner: 12345
 # Directory with files for ripgrep
 db_path: /var/searching
 # File type for search
-file_type: csv
+v
