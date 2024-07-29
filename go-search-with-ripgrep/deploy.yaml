@@ -33,7 +33,17 @@
     - name: Copy binary
       copy:
         src: "searcher"
-        dest: /home/{{ searcher_user }}/opt/searcher/{{ item }}
+        dest: "/home/{{ searcher_user }}/opt/searcher/searcher"
+        owner: "{{ searcher_user }}"
+        group: "{{ searcher_user }}"
+        mode: "0755"
+      notify:
+        - Restart searcher
+
+    - name: Copy config.yaml
+      copy:
+        src: config.yaml
+        dest: "/home/{{ searcher_user }}/opt/searcher/config.yaml"
         owner: "{{ searcher_user }}"
         group: "{{ searcher_user }}"
         mode: "0755"
@@ -85,16 +95,16 @@
           Alias={{ searcher_service }}.service
           WantedBy=multi-user.target
       notify:
-        - Restart {{ searcher_service }}
+        - Restart searcher
 
     - name: Start systemd unit
       ansible.builtin.systemd_service:
-        name: {{ searcher_service }}
+        name: "{{ searcher_service }}"
         enabled: true
         state: started
         daemon_reload: true
   handlers:
-    - name: Restart {{ searcher_service }}
+    - name: Restart searcher
       ansible.builtin.systemd_service:
-        name: search
+        name: "{{ searcher_service }}"
         state: restarted

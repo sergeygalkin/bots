@@ -18,7 +18,7 @@ for 2155 CSV files with 29G summary size. Disk is SSD.
 ./run_me_docker_compose.sh
 ```
 
-## Run with systemd service
+## Run as systemd service (do not have uninstall, not fully tested)
 
 1. install golang and ansible
 2. `cp config.example.yaml config.yaml` and edit config file
