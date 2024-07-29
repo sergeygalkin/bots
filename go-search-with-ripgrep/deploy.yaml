@@ -1,0 +1,100 @@
+---
+- name: Deploy
+  gather_facts: false
+  become: true
+  hosts: localhost
+  vars:
+    searcher_user: searcher
+    searcher_service: searcher
+  tasks:
+    - name: Create group
+      group:
+        name: "{{ searcher_user }}"
+        state: present
+    - name: Create user {{ searcher_user }}
+      user:
+        name: "{{ searcher_user }}"
+        state: present
+        group: "{{ searcher_user }}"
+        home: "/home/{{ searcher_user }}"
+        create_home: true
+
+    - name: Create /home/{{ searcher_user }}/opt/searcher
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ searcher_user }}"
+        group: "{{ searcher_user }}"
+        mode: "0755"
+      with_items:
+        - /home/{{ searcher_user }}/opt/
+        - /home/{{ searcher_user }}/opt/searcher
+
+    - name: Copy binary
+      copy:
+        src: "searcher"
+        dest: /home/{{ searcher_user }}/opt/searcher/{{ item }}
+        owner: "{{ searcher_user }}"
+        group: "{{ searcher_user }}"
+        mode: "0755"
+      notify:
+        - Restart searcher
+
+    - name: Create systemd unit
+      copy:
+        dest: /etc/systemd/system/{{ searcher_service }}.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Run {{ searcher_service }} bot
+          After=network.target
+
+          [Service]
+          CapabilityBoundingSet=~CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE
+          CapabilityBoundingSet=~CAP_BLOCK_SUSPEND CAP_KILL CAP_LEASE CAP_LINUX_IMMUTABLE
+          CapabilityBoundingSet=~CAP_MAC_ADMIN CAP_MAC_OVERRIDE CAP_MKNOD CAP_SYS_ADMIN
+          CapabilityBoundingSet=~CAP_SYS_BOOT CAP_SYS_CHROOT CAP_SYS_MODULE CAP_SYS_PACCT
+          CapabilityBoundingSet=~CAP_SYS_PTRACE CAP_SYS_RAWIO CAP_SYS_TTY_CONFIG CAP_WAKE_ALARM
+          DeviceAllow=char-pps rw
+          DeviceAllow=char-ptp rw
+          DeviceAllow=char-rtc rw
+          DevicePolicy=closed
+          LockPersonality=yes
+          MemoryDenyWriteExecute=yes
+          NoNewPrivileges=yes
+          PrivateTmp=yes
+          ProcSubset=pid
+          ProtectControlGroups=yes
+          # ProtectHome=yes
+          ProtectHostname=yes
+          ProtectKernelLogs=yes
+          ProtectKernelModules=yes
+          ProtectKernelTunables=yes
+          ProtectProc=invisible
+          ProtectSystem=strict
+          RestrictNamespaces=yes
+          RestrictSUIDSGID=yes
+          User={{ searcher_user }}
+          Group={{ searcher_user }}
+          WorkingDirectory=/home/{{ searcher_user }}/opt/searcher
+          ExecStart=/home/{{ searcher_user }}/opt/searcher/searcher
+
+          [Install]
+          Alias={{ searcher_service }}.service
+          WantedBy=multi-user.target
+      notify:
+        - Restart {{ searcher_service }}
+
+    - name: Start systemd unit
+      ansible.builtin.systemd_service:
+        name: {{ searcher_service }}
+        enabled: true
+        state: started
+        daemon_reload: true
+  handlers:
+    - name: Restart {{ searcher_service }}
+      ansible.builtin.systemd_service:
+        name: search
+        state: restarted

@@ -1,0 +1,5 @@
+bot_token: some_token
+bot_users:
+  - tguser
+bot_owner: 12345
+db_path: /var/searching

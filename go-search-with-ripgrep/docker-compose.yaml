@@ -1,0 +1,8 @@
+services:
+  searcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ${SEARCH_FILES}:/var/searching:ro
