@@ -1,5 +1,10 @@
 bot_token: some_token
+# Bot users
 bot_users:
   - tguser
+# Bot owner, can use /limit and get basic notifications
 bot_owner: 12345
+# Directory with files for ripgrep
 db_path: /var/searching
+# File type for search
+file_type: csv

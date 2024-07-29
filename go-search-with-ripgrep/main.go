@@ -24,13 +24,14 @@ var bot *telebot.Bot
 
 const CONFIG_PATH = "./config.yaml"
 const MAX_COUNT_PER_FILE = "200"
-const EXPECTED_FILES = "csv"
+
 
 type Config struct {
 	BotToken string   `yaml:"bot_token"`
 	BotUsers []string `yaml:"bot_users"`
 	BotOwner int64    `yaml:"bot_owner"`
 	DbPath   string   `yaml:"db_path"`
+	FileType string   `yaml:"file_type"`
 }
 
 type SearchResult struct {
@@ -39,13 +40,13 @@ type SearchResult struct {
 }
 
 // GetFilesList retrieves a list of all files in the specified directory and its subdirectories.
-func GetFilesList(dir string) ([]string, error) {
+func GetFilesList(dir string, config Config) ([]string, error) {
 	var myFiles []string
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && filepath.Ext(path) == "."+EXPECTED_FILES {
+		if !info.IsDir() && filepath.Ext(path) == "."  + config.FileType {
 			myFiles = append(myFiles, path)
 		}
 		return nil
@@ -64,7 +65,7 @@ func handleSignals(stop chan os.Signal, config Config) {
 	os.Exit(0)
 }
 
-func searchInFile(filePath string, keywords []string, maxLines int) SearchResult {
+func searchInFile(filePath string, keywords []string, maxLines int, config Config) SearchResult {
 	results := SearchResult{
 		Matches:    make(map[string][]string),
 		TotalLines: 0,
@@ -77,7 +78,7 @@ func searchInFile(filePath string, keywords []string, maxLines int) SearchResult
 	// Prepare command arguments
 	args := []string{"--with-filename", "--no-heading", "--ignore-case",
 		"--max-count", MAX_COUNT_PER_FILE,
-		"--type", EXPECTED_FILES,
+		"--type", config.FileType,
 		keywords[0]}
 	args = append(args, filePath)
 
@@ -153,15 +154,15 @@ func startBot(config Config) {
 		log.Fatalf("Failed to set commands: %s", err)
 	}
 	bot.Send(&telebot.User{ID: config.BotOwner}, "🫡 Bot started")
-	myFiles, err := GetFilesList(config.DbPath)
+	myFiles, err := GetFilesList(config.DbPath, config)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
 	bot.Send(&telebot.User{ID: config.BotOwner},
-		fmt.Sprintf("🫡 Found %s files", strconv.Itoa(len(myFiles))))
+		fmt.Sprintf("🫡 Found %d files", len(myFiles)))
 	bot.Send(&telebot.User{ID: config.BotOwner},
-		fmt.Sprintf("🫡 Search output limit is %s lines", strconv.Itoa(MaxResults)))
+		fmt.Sprintf("🫡 Search output limit is %d lines", MaxResults))
 	search_limit := MaxResults
 
 	// Limit command
@@ -203,7 +204,7 @@ func startBot(config Config) {
 		substrings := strings.Split(search_string, "|")
 		bot.Send(lastSender, "🔎 Searching...")
 		startTime := time.Now()
-		results := searchInFile(config.DbPath, substrings, search_limit)
+		results := searchInFile(config.DbPath, substrings, search_limit, config)
 		if len(results.Matches) > 0 {
 			if results.TotalLines > search_limit {
 				head_message := fmt.Sprintf("⚠️ The total %d lines with limits lines %s per file found, "+
